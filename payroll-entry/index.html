@@ -41,11 +41,12 @@
     input::placeholder { color: #8996a0; }
     input:focus, select:focus, button:focus-visible, summary:focus-visible { outline: 3px solid #d5a24766; outline-offset: 2px; border-color: #b47d28; }
     .period-field { width: 150px; }
-    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 17px; padding: 4px; background: var(--ink); border-radius: var(--radius); }
+    .period-field.person-filter { width: 200px; }
+    .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-bottom: 17px; padding: 4px; background: var(--ink); border-radius: var(--radius); }
     .metric { min-width: 0; padding: 12px 17px 13px; background: transparent; border: 0; border-right: 1px solid #ffffff2b; border-radius: 0; color: #fff; }
-    .metric:last-child { margin: 2px; padding-left: 16px; background: var(--green-pale); border: 0; border-radius: 5px; color: var(--ink); }
+    .metric:nth-last-child(-n+2) { margin: 2px; padding-left: 16px; background: var(--green-pale); border: 0; border-radius: 5px; color: var(--ink); }
     .metric span { display: block; color: #c8d2d9; font-size: 11px; font-weight: 550; }
-    .metric:last-child span { color: var(--green); }
+    .metric:nth-last-child(-n+2) span { color: var(--green); }
     .metric strong { display: block; margin-top: 5px; overflow: hidden; font-size: clamp(19px, 2.4vw, 25px); font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
     .workbench { display: grid; grid-template-columns: minmax(320px, .78fr) minmax(0, 1.55fr); gap: 15px; align-items: start; }
     .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -108,11 +109,21 @@
     .item-list { margin: 9px 0 0; padding: 0; list-style: none; }
     .item-list li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid #dbe2e6; font-size: 13px; }
     .item-list small { color: var(--ink-soft); }
+    .person-open { border: 0; padding: 0; color: var(--ink); background: transparent; font: inherit; font-weight: 650; text-align: left; text-decoration: underline; text-decoration-color: #b9c4ca; text-underline-offset: 3px; }
+    .person-open:hover { color: #7a541b; }
+    .summary-person { border: 0; padding: 0; color: var(--ink); background: transparent; font: inherit; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: #b9c4ca; text-underline-offset: 3px; }
+    .summary-person:hover { color: #7a541b; }
+    .daily-breakdown { padding: 0 !important; background: #f7f9fa; }
+    .daily-breakdown table { margin: 0; }
+    .daily-breakdown th { background: #f0f3f5; }
+    .person-detail { margin-top: 15px; overflow: hidden; }
+    .person-detail[hidden] { display: none; }
     .backup-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 2px; }
     .footnote { margin-top: 13px; color: var(--ink-soft); font-size: 12px; }
     .toast { position: fixed; right: 20px; bottom: 20px; z-index: 5; max-width: min(420px, calc(100vw - 40px)); padding: 12px 15px; border-radius: 7px; color: white; background: var(--green); box-shadow: 0 8px 25px #1f344733; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
     .toast.show { opacity: 1; transform: translateY(0); }
     @media (max-width: 980px) { .setup-grid { grid-template-columns: 1fr; gap: 0; } }
+    @media (max-width: 900px) { .metrics { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 780px) {
       .shell { padding: 23px 16px 40px; }
       header { display: block; }
@@ -179,12 +190,17 @@
             <button class="secondary" type="submit">Thêm người</button>
           </form>
           <ul id="peopleList" class="item-list"></ul>
+          <section id="personDetail" class="panel person-detail" hidden aria-live="polite">
+            <div class="panel-head"><h2 id="personDetailTitle">Sản lượng theo ngày</h2><p>Mỗi ô là tổng số lượng của món đó trong ngày.</p></div>
+            <div class="table-wrap"><table id="personDetailTable"></table><div id="emptyPersonDetail" class="empty" hidden>Người này chưa có dòng sản lượng.</div></div>
+          </section>
         </div>
       </section>
     </div>
 
     <section class="period-bar" aria-label="Khoảng ngày tổng hợp">
-      <h2>Tổng hợp tiền công</h2>
+      <h2>Thống kê tiền công</h2>
+      <div class="period-field person-filter"><label for="statsPerson">Người làm</label><select id="statsPerson"></select></div>
       <div class="period-field"><label for="fromDate">Từ ngày</label><input id="fromDate" type="text" inputmode="numeric" maxlength="10" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/yyyy" autocomplete="off"></div>
       <div class="period-field"><label for="toDate">Đến ngày</label><input id="toDate" type="text" inputmode="numeric" maxlength="10" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/yyyy" autocomplete="off"></div>
     </section>
@@ -194,6 +210,7 @@
       <div class="metric"><span>Lương gộp chưa thanh toán</span><strong id="grossPay">0 ₫</strong></div>
       <div class="metric"><span>Trừ nợ chưa thanh toán</span><strong id="periodDeduction">0 ₫</strong></div>
       <div class="metric"><span>Còn phải trả</span><strong id="netPay">0 ₫</strong></div>
+      <div class="metric"><span>Lương đã nhận</span><strong id="receivedPay">0 ₫</strong></div>
     </section>
 
     <section class="workbench">
@@ -217,15 +234,16 @@
       <section class="panel ledger" aria-labelledby="ledgerTitle">
         <div class="panel-head">
           <h2 id="ledgerTitle">Các dòng đã nhập</h2>
-          <p>Chọn ngày để xem và sửa danh sách trong ngày đó.</p>
+          <p>Dòng mới sẽ chờ xác nhận. Bấm “Xác nhận” để cộng dòng đó vào lương.</p>
         </div>
         <div class="ledger-tools">
           <div class="control"><label for="ledgerDate">Ngày xem</label><input id="ledgerDate" type="text" inputmode="numeric" maxlength="10" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/yyyy" autocomplete="off"></div>
           <button id="showAll" type="button" class="secondary">Xem tất cả</button>
+          <button id="confirmAllEntries" type="button" class="primary">Xác nhận tất cả</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Người làm</th><th>Món</th><th class="numeric">SL</th><th class="numeric">Tiền công</th><th></th></tr></thead>
+            <thead><tr><th>Người làm</th><th>Ngày</th><th>Món</th><th class="numeric">SL</th><th class="numeric">Tiền công</th><th>Trạng thái</th><th></th></tr></thead>
             <tbody id="entryRows"></tbody>
           </table>
           <div id="emptyEntries" class="empty" hidden>Chưa có dòng nào trong ngày này.</div>
@@ -263,15 +281,8 @@
     <section class="section panel summary-panel" aria-labelledby="payrollTitle">
       <div class="summary-head">
         <h2 id="payrollTitle">Lương còn phải trả theo người</h2>
-        <div class="export-controls">
-          <div class="control"><label for="exportPerson">Xuất file của</label><select id="exportPerson"></select></div>
-          <button id="chooseFolder" class="secondary" type="button">Chọn thư mục Luong</button>
-          <button id="saveWorkbook" class="primary" type="button">Lưu / cập nhật Excel</button>
-          <button id="exportXlsx" class="secondary" type="button">Tải Excel theo kỳ</button>
-        </div>
       </div>
-      <p class="summary-note">Thực nhận = lương gộp − khoản nợ ghi trong kỳ. Bấm “Đã thanh toán” để dọn người đó khỏi bảng này; chi tiết vẫn được lưu trong sổ và lịch sử thanh toán.</p>
-      <div id="folderStatus" class="folder-status">Chưa chọn thư mục. Chọn thư mục Luong để lưu trực tiếp file Excel theo từng người.</div>
+      <p class="summary-note">Bấm tên người để xem chi tiết theo ngày; các dòng cùng ngày được gộp lại. Thực nhận = lương gộp − khoản nợ ghi trong kỳ.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Người làm</th><th class="numeric">Số dòng</th><th class="numeric">Số lượng</th><th class="numeric">Lương gộp</th><th class="numeric">Trừ nợ</th><th class="numeric">Thực nhận</th><th></th></tr></thead>
@@ -279,6 +290,11 @@
         </table>
         <div id="emptyPeople" class="empty" hidden>Không còn khoản lương chưa thanh toán trong kỳ này.</div>
       </div>
+    </section>
+
+    <section class="section panel" aria-labelledby="weeklyExportTitle">
+      <div class="summary-head"><h2 id="weeklyExportTitle">Tự động lưu Excel hàng tuần</h2><button id="chooseLuongFolder" type="button" class="secondary">Chọn thư mục Luong</button></div>
+      <p id="weeklyExportStatus" class="summary-note" aria-live="polite">Chọn thư mục Luong để bật lưu Excel tự động theo tuần. Trang cần được mở; nếu lỡ kỳ khi đóng trang, hệ thống sẽ lưu bù vào lần mở kế tiếp.</p>
     </section>
 
     <details class="section" id="paymentHistory">
@@ -299,7 +315,7 @@
         <label class="secondary" for="restoreFile" style="display:inline-flex;align-items:center;margin:0;cursor:pointer">Khôi phục từ bản sao</label>
         <input id="restoreFile" type="file" accept="application/json,.json" hidden>
       </div>
-      <p class="footnote">Mỗi khoản nợ được trừ một lần khi ngày ghi nằm trong kỳ đã chọn. Mỗi dòng sản lượng giữ đơn giá tại thời điểm nhập. File Excel riêng được lưu vào thư mục Tải xuống của trình duyệt.</p>
+      <p class="footnote">Mỗi khoản nợ được trừ một lần khi ngày ghi nằm trong kỳ đã chọn. Mỗi dòng sản lượng giữ đơn giá tại thời điểm nhập. Dữ liệu được lưu riêng theo từng người trên trình duyệt này.</p>
     </details>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -345,6 +361,8 @@
     };
     let data = load();
     let showEveryEntry = false;
+    let selectedProfileId = '';
+    let expandedPayrollPersonId = '';
     let toastTimer;
     const persist = () => localStorage.setItem(KEY, JSON.stringify(data));
     const toast = message => {
@@ -368,8 +386,11 @@
       setOptions($('personSelect'), data.people, data.people.length ? 'Chọn người làm' : 'Thêm người trước');
       setOptions($('debtPerson'), data.people, data.people.length ? 'Chọn người làm' : 'Thêm người trước');
       setOptions($('productSelect'), data.products, data.products.length ? 'Chọn món đồ' : 'Thêm món trước');
-      setOptions($('exportPerson'), data.people, data.people.length ? 'Chọn người để xuất' : 'Chưa có người làm');
-      renderRate(); renderLedger(); renderDebts(); renderSummary(); renderPayments(); renderLists();
+      const statsPerson=$('statsPerson'), previousPerson=statsPerson.value;
+      statsPerson.replaceChildren(option('',data.people.length?'Tất cả người':'Thêm người trước'));
+      data.people.forEach(person=>statsPerson.append(option(person.id,person.name)));
+      if(data.people.some(person=>person.id===previousPerson))statsPerson.value=previousPerson;
+      renderRate(); renderLedger(); renderDebts(); renderSummary(); renderPayments(); renderLists(); renderPersonDetail();
     };
     const renderRate = () => {
       const p=data.products.find(x=>x.id===$('productSelect').value);
@@ -379,13 +400,15 @@
       const tbody=$('entryRows'); tbody.replaceChildren();
       const target=isoDate($('ledgerDate').value);
       const rows=data.entries.filter(e=>showEveryEntry || (target && e.date===target)).sort((a,b)=>b.date.localeCompare(a.date));
+      $('confirmAllEntries').disabled=!rows.some(e=>e.confirmed===false);
       $('emptyEntries').hidden=rows.length>0;
       for (const e of rows) {
         const tr=document.createElement('tr');
-        for (const [text,cls] of [[e.personName,''],[e.productName,''],[number(e.quantity),'numeric'],[money(e.amount),'numeric']]) {
+        for (const [text,cls] of [[e.personName,''],[displayDate(e.date),''],[e.productName,''],[number(e.quantity),'numeric'],[money(e.amount),'numeric'],[e.confirmed===false?'Chờ xác nhận':'Đã xác nhận','']]) {
           const td=document.createElement('td'); td.textContent=text; if(cls) td.className=cls; tr.append(td);
         }
         const action=document.createElement('td');
+        if(e.confirmed===false){const confirmLine=document.createElement('button');confirmLine.type='button';confirmLine.className='secondary';confirmLine.textContent='Xác nhận';confirmLine.addEventListener('click',()=>{e.confirmed=true;persist();render();toast(`Đã xác nhận sản lượng của ${e.personName} và cộng vào lương.`);});action.append(confirmLine);}
         const del=document.createElement('button'); del.type='button'; del.className='delete-row'; del.textContent='Xóa'; del.setAttribute('aria-label',`Xóa ${e.personName}, ${e.productName}, ${displayDate(e.date)}`);
         del.addEventListener('click',()=>{ if(confirm('Xóa dòng sản lượng này?')) { data.entries=data.entries.filter(x=>x.id!==e.id); persist(); render(); toast('Đã xóa dòng sản lượng.'); } });
         action.append(del); tr.append(action); tbody.append(tr);
@@ -396,7 +419,8 @@
       const from=isoDate($('fromDate').value), to=isoDate($('toDate').value);
       const paidEntryIds=new Set(data.payments.flatMap(p=>p.entryIds||[]));
       const paidDebtIds=new Set(data.payments.flatMap(p=>p.debtIds||[]));
-      const entries=periodEntries().filter(e=>!paidEntryIds.has(e.id));
+      const allPeriodEntries=periodEntries().filter(e=>e.confirmed!==false);
+      const entries=allPeriodEntries.filter(e=>!paidEntryIds.has(e.id));
       const debts=from && to && from<=to ? data.debts.filter(d=>d.date>=from && d.date<=to && !paidDebtIds.has(d.id)) : [];
       const totals=data.people.map(person=>{
         const own=entries.filter(e=>e.personId===person.id);
@@ -404,29 +428,61 @@
         const gross=own.reduce((s,e)=>s+Number(e.amount),0), deduction=ownDebts.reduce((s,d)=>s+Number(d.amount),0);
         return {person, entries:own, debts:ownDebts, lines:own.length, quantity:own.reduce((s,e)=>s+Number(e.quantity),0), gross, deduction, net:gross-deduction};
       }).filter(t=>t.entries.length || t.debts.length);
-      const qty=entries.reduce((s,e)=>s+Number(e.quantity),0);
-      const pay=entries.reduce((s,e)=>s+Number(e.amount),0), deduction=debts.reduce((s,d)=>s+Number(d.amount),0);
+      const selectedPerson=$('statsPerson').value;
+      const statsEntries=selectedPerson?entries.filter(e=>e.personId===selectedPerson):entries;
+      const statsDebts=selectedPerson?debts.filter(d=>d.personId===selectedPerson):debts;
+      const received=data.payments.filter(payment=>{
+        const paidDate=payment.paidAt?.slice(0,10)||'';
+        return from&&to&&paidDate>=from&&paidDate<=to&&(!selectedPerson||payment.personId===selectedPerson);
+      }).reduce((sum,payment)=>sum+Number(payment.net||0),0);
+      const qty=statsEntries.reduce((s,e)=>s+Number(e.quantity),0);
+      const pay=statsEntries.reduce((s,e)=>s+Number(e.amount),0), deduction=statsDebts.reduce((s,d)=>s+Number(d.amount),0);
       $('periodQty').textContent=number(qty);
       $('grossPay').textContent=money(pay);
       $('periodDeduction').textContent=money(deduction);
       $('netPay').textContent=money(pay-deduction);
+      $('receivedPay').textContent=money(received);
       $('emptyPeople').hidden=totals.length>0;
       for(const t of totals){
         const tr=document.createElement('tr');
-        for(const [value,cls] of [[t.person.name,''],[number(t.lines),'numeric'],[number(t.quantity),'numeric'],[money(t.gross),'numeric'],[money(t.deduction),'numeric'],[money(t.net),'numeric']]){
+        const personCell=document.createElement('td');
+        const personButton=document.createElement('button');personButton.type='button';personButton.className='summary-person';personButton.textContent=t.person.name;personButton.setAttribute('aria-expanded',String(expandedPayrollPersonId===t.person.id));
+        personButton.addEventListener('click',()=>{expandedPayrollPersonId=expandedPayrollPersonId===t.person.id?'':t.person.id;renderSummary();});personCell.append(personButton);tr.append(personCell);
+        for(const [value,cls] of [[number(t.lines),'numeric'],[number(t.quantity),'numeric'],[money(t.gross),'numeric'],[money(t.deduction),'numeric'],[money(t.net),'numeric']]){
           const td=document.createElement('td'); td.textContent=value; if(cls)td.className=cls; tr.append(td);
         }
         const action=document.createElement('td');
         const paid=document.createElement('button'); paid.type='button'; paid.className='secondary'; paid.textContent='Đã thanh toán';
-        paid.addEventListener('click',()=>{
+        paid.addEventListener('click',async()=>{
           const from=isoDate($('fromDate').value), to=isoDate($('toDate').value);
           if(!from || !to || from>to){toast('Khoảng ngày chưa hợp lệ. Hãy nhập theo định dạng dd/mm/yyyy.');return;}
           if(!confirm(`Xác nhận đã thanh toán ${money(t.net)} cho ${t.person.name} trong kỳ ${displayDate(from)} đến ${displayDate(to)}? Khoản này sẽ được lưu vào lịch sử và không còn tính vào số lương chưa thanh toán.`))return;
-          data.payments.push({id:safeId(),personId:t.person.id,personName:t.person.name,from,to,paidAt:new Date().toISOString(),entryIds:t.entries.map(e=>e.id),debtIds:t.debts.map(d=>d.id),gross:t.gross,deduction:t.deduction,net:t.net,lines:t.lines,quantity:t.quantity});
-          persist(); render(); toast(`Đã lưu thanh toán cho ${t.person.name}.`);
+          data.payments.push({id:safeId(),personId:t.person.id,personName:t.person.name,from,to,paidAt:new Date().toISOString(),entryIds:t.entries.map(e=>e.id),debtIds:t.debts.map(d=>d.id),debtItems:t.debts.map(d=>({...d})),gross:t.gross,deduction:t.deduction,net:t.net,lines:t.lines,quantity:t.quantity});
+          const settledDebtIds=new Set(t.debts.map(d=>d.id));
+          data.debts=data.debts.filter(debt=>!settledDebtIds.has(debt.id));
+          persist(); render();
+          toast(`Đã xác nhận thanh toán riêng cho ${t.person.name}.`);
         });
         action.append(paid); tr.append(action);
         rows.append(tr);
+        if(expandedPayrollPersonId===t.person.id){
+          const detailRow=document.createElement('tr'), detailCell=document.createElement('td');detailCell.colSpan=7;detailCell.className='daily-breakdown';
+          const detailTable=document.createElement('table'), detailHead=document.createElement('thead'), detailHeader=document.createElement('tr');
+          for(const label of ['Ngày','Món và số lượng','Tổng số lượng','Tiền công ngày']){const th=document.createElement('th');th.textContent=label;detailHeader.append(th);}detailHead.append(detailHeader);detailTable.append(detailHead);
+          const grouped=new Map();
+          for(const entry of t.entries){if(!grouped.has(entry.date))grouped.set(entry.date,[]);grouped.get(entry.date).push(entry);}
+          const detailBody=document.createElement('tbody');
+          for(const [date,dayEntries] of [...grouped].sort(([a],[b])=>a.localeCompare(b))){
+            const products=new Map();let quantity=0,amount=0;
+            for(const entry of dayEntries){const current=products.get(entry.productName)||{quantity:0,amount:0};current.quantity+=Number(entry.quantity);current.amount+=Number(entry.amount);products.set(entry.productName,current);quantity+=Number(entry.quantity);amount+=Number(entry.amount);}
+            const detailTr=document.createElement('tr');
+            const dateCell=document.createElement('td');dateCell.textContent=displayDate(date);detailTr.append(dateCell);
+            const productCell=document.createElement('td');productCell.textContent=[...products].map(([name,info])=>`${name}: ${number(info.quantity)}`).join(' · ');detailTr.append(productCell);
+            const quantityCell=document.createElement('td');quantityCell.className='numeric';quantityCell.textContent=number(quantity);detailTr.append(quantityCell);
+            const amountCell=document.createElement('td');amountCell.className='numeric';amountCell.textContent=money(amount);detailTr.append(amountCell);detailBody.append(detailTr);
+          }
+          detailTable.append(detailBody);detailCell.append(detailTable);detailRow.append(detailCell);rows.append(detailRow);
+        }
       }
     };
     const renderPayments = () => {
@@ -444,7 +500,9 @@
         const undo=document.createElement('button'); undo.type='button'; undo.className='delete-row'; undo.textContent='Hủy xác nhận';
         undo.addEventListener('click',()=>{
           if(!confirm(`Hủy xác nhận thanh toán của ${payment.personName} kỳ ${displayDate(payment.from)} đến ${displayDate(payment.to)}? Các dòng liên quan sẽ trở lại danh sách lương chưa thanh toán.`))return;
-          data.payments=data.payments.filter(item=>item.id!==payment.id); persist(); render(); toast('Đã mở lại khoản lương chưa thanh toán.');
+          const existingDebtIds=new Set(data.debts.map(debt=>debt.id));
+          for(const debt of payment.debtItems||[]){if(!existingDebtIds.has(debt.id))data.debts.push(debt);}
+          data.payments=data.payments.filter(item=>item.id!==payment.id); persist(); render(); toast('Đã mở lại khoản lương và khôi phục các khoản nợ đã trừ.');
         });
         action.append(undo); tr.append(action); rows.append(tr);
       }
@@ -468,7 +526,7 @@
     };
     const renderLists = () => {
       const people=$('peopleList'); people.replaceChildren();
-      data.people.forEach(p=>{const li=document.createElement('li'); li.textContent=p.name; const small=document.createElement('small'); small.textContent=data.entries.some(e=>e.personId===p.id)?'Đang có dữ liệu':''; li.append(small); people.append(li);});
+      data.people.forEach(p=>{const li=document.createElement('li'); const open=document.createElement('button'); open.type='button'; open.className='person-open'; open.textContent=p.name; open.addEventListener('click',()=>{selectedProfileId=p.id;renderPersonDetail();}); const small=document.createElement('small'); small.textContent=data.entries.some(e=>e.personId===p.id)?'Xem sản lượng':''; li.append(open,small); people.append(li);});
       const products=$('productsList'); products.replaceChildren();
       data.products.forEach(p=>{
         const li=document.createElement('li');
@@ -486,16 +544,47 @@
         actions.append(small,edit); li.append(name,actions); products.append(li);
       });
     };
+    const renderPersonDetail = () => {
+      const panel=$('personDetail'), person=data.people.find(p=>p.id===selectedProfileId);
+      panel.hidden=!person;
+      if(!person)return;
+      $('personDetailTitle').textContent=`Sản lượng của ${person.name}`;
+      const table=$('personDetailTable'); table.replaceChildren();
+      const entries=data.entries.filter(e=>e.personId===person.id&&e.confirmed!==false);
+      const dates=[...new Set(entries.map(e=>e.date))].sort();
+      $('emptyPersonDetail').hidden=entries.length>0;
+      if(!entries.length)return;
+      const products=[...new Set(entries.map(e=>e.productName))].sort((a,b)=>a.localeCompare(b,'vi'));
+      const head=document.createElement('thead'), header=document.createElement('tr');
+      for(const label of ['Món đồ',...dates.map(displayDate),'Tổng']){const th=document.createElement('th');th.textContent=label;header.append(th);}
+      head.append(header);table.append(head);
+      const body=document.createElement('tbody');
+      for(const product of products){
+        const tr=document.createElement('tr');let total=0;
+        const name=document.createElement('td');name.textContent=product;tr.append(name);
+        for(const date of dates){const qty=entries.filter(e=>e.productName===product&&e.date===date).reduce((sum,e)=>sum+Number(e.quantity),0);total+=qty;const td=document.createElement('td');td.className='numeric';td.textContent=qty?number(qty):'—';tr.append(td);}
+        const sum=document.createElement('td');sum.className='numeric';sum.textContent=number(total);tr.append(sum);body.append(tr);
+      }
+      table.append(body);
+    };
 
     for(const id of ['fromDate','toDate','entryDate','ledgerDate','debtDate'])$(id).addEventListener('input',event=>formatDateInput(event.currentTarget));
     setDateInput('fromDate',monthStart(localDate())); setDateInput('toDate',localDate());
     setDateInput('entryDate',localDate()); setDateInput('ledgerDate',localDate());
     setDateInput('debtDate',localDate());
     $('productSelect').addEventListener('change',renderRate);
+    $('statsPerson').addEventListener('change',renderSummary);
     $('productPrice').addEventListener('input',event=>{event.currentTarget.value=event.currentTarget.value.replace(/\D/g,'');});
     $('fromDate').addEventListener('change',()=>{renderDebts();renderSummary();}); $('toDate').addEventListener('change',()=>{renderDebts();renderSummary();});
     $('ledgerDate').addEventListener('change',()=>{showEveryEntry=false;renderLedger();});
     $('showAll').addEventListener('click',()=>{showEveryEntry=true;renderLedger();});
+    $('confirmAllEntries').addEventListener('click',()=>{
+      const target=isoDate($('ledgerDate').value);
+      const pending=data.entries.filter(e=>(showEveryEntry || (target && e.date===target))&&e.confirmed===false);
+      if(!pending.length){toast('Không có dòng nào đang chờ xác nhận trong danh sách này.');return;}
+      pending.forEach(entry=>{entry.confirmed=true;});
+      persist();render();toast(`Đã xác nhận ${pending.length} dòng sản lượng và cộng vào lương.`);
+    });
     $('entryForm').addEventListener('submit',event=>{
       event.preventDefault();
       const person=data.people.find(x=>x.id===$('personSelect').value);
@@ -504,10 +593,10 @@
       if(!person || !product || !Number.isInteger(qty) || qty<1){toast('Chọn người, món và nhập số nguyên dương cho số lượng.');return;}
       const date=isoDate($('entryDate').value);
       if(!date){toast('Ngày làm không hợp lệ. Hãy nhập theo định dạng dd/mm/yyyy.');return;}
-      data.entries.push({id:safeId(),date,personId:person.id,personName:person.name,productId:product.id,productName:product.name,quantity:qty,rate:Number(product.price),amount:qty*Number(product.price)});
+      data.entries.push({id:safeId(),date,personId:person.id,personName:person.name,productId:product.id,productName:product.name,quantity:qty,rate:Number(product.price),amount:qty*Number(product.price),confirmed:false});
       persist();
       setDateInput('ledgerDate',date); showEveryEntry=false;
-      $('quantity').value=''; render(); toast('Đã lưu dòng sản lượng.');
+      $('quantity').value=''; render(); $('ledgerTitle').scrollIntoView({behavior:'smooth',block:'center'}); toast('Đã lưu dòng vào danh sách chờ xác nhận.');
     });
     $('personForm').addEventListener('submit',event=>{
       event.preventDefault(); const name=$('personName').value.trim();
@@ -593,99 +682,96 @@
         ['xl/styles.xml',styles],['xl/worksheets/sheet1.xml',sheet],
       ]);
     };
+
+    const WEEKLY_EXPORT_KEY='so-san-luong-weekly-export-v1';
     const HANDLE_DB='so-san-luong-handles-v1';
-    let outputDirectory=null;
-    let savedDirectoryHandle=false;
-    let handleDbPromise=null;
+    let outputDirectory=null, weeklyExportRunning=false, handleDbPromise=null;
     const openHandleDb=()=>{
       if(handleDbPromise)return handleDbPromise;
       handleDbPromise=new Promise((resolve,reject)=>{
-        if(!('indexedDB' in window)){reject(new Error('Trình duyệt không hỗ trợ lưu thư mục.'));return;}
+        if(!('indexedDB' in window)){reject(new Error('Trình duyệt không hỗ trợ ghi nhớ thư mục.'));return;}
         const request=indexedDB.open(HANDLE_DB,1);
-        request.onupgradeneeded=()=>request.result.createObjectStore('handles');
-        request.onsuccess=()=>resolve(request.result);
-        request.onerror=()=>reject(request.error);
+        request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('handles'))request.result.createObjectStore('handles');};
+        request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
       });
       return handleDbPromise;
     };
-    const readOutputDirectory=async()=>{
+    const storeLuongFolder=async handle=>{
       const db=await openHandleDb();
-      return new Promise((resolve,reject)=>{
-        const request=db.transaction('handles','readonly').objectStore('handles').get('luong');
-        request.onsuccess=()=>resolve(request.result||null);
-        request.onerror=()=>reject(request.error);
-      });
+      await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(handle,'luong');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
     };
-    const storeOutputDirectory=async handle=>{
+    const readLuongFolder=async()=>{
       const db=await openHandleDb();
-      return new Promise((resolve,reject)=>{
-        const tx=db.transaction('handles','readwrite');
-        tx.objectStore('handles').put(handle,'luong');
-        tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
-      });
+      return new Promise((resolve,reject)=>{const req=db.transaction('handles','readonly').objectStore('handles').get('luong');req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});
     };
-    const updateFolderStatus=()=>{
-      $('folderStatus').textContent=outputDirectory
-        ? `Đang lưu trực tiếp vào thư mục ${outputDirectory.name}. Mỗi người có một file; lưu lại sẽ cập nhật dữ liệu các ngày trong cùng file.${savedDirectoryHandle?'':' Hãy chọn lại thư mục sau khi mở lại trang.'}`
-        : 'Chọn thư mục C:\\Note\\Luong một lần để lưu trực tiếp và cập nhật file Excel theo từng người.';
-    };
-    const chooseOutputDirectory=async()=>{
-      if(!('showDirectoryPicker' in window)){toast('Trình duyệt này chưa hỗ trợ lưu trực tiếp vào thư mục. Dùng nút Tải Excel theo kỳ.');return null;}
-      try{
-        const handle=await window.showDirectoryPicker({id:'so-san-luong-luong',mode:'readwrite'});
-        if(handle.name.toLocaleLowerCase()!=='luong'){toast('Hãy chọn đúng thư mục tên Luong.');return null;}
-        const permission=await handle.requestPermission({mode:'readwrite'});
-        if(permission!=='granted'){toast('Chưa được cấp quyền ghi vào thư mục Luong.');return null;}
-        outputDirectory=handle;
-        try{await storeOutputDirectory(handle);savedDirectoryHandle=true;}catch{savedDirectoryHandle=false;}
-        updateFolderStatus(); toast('Đã chọn thư mục Luong.'); return handle;
-      }catch(error){
-        if(error?.name!=='AbortError')toast('Không chọn được thư mục. Hãy thử lại.');
-        return null;
-      }
-    };
-    const initializeOutputDirectory=async()=>{
-      try{
-        const handle=await readOutputDirectory();
-        if(handle && handle.name.toLocaleLowerCase()==='luong'){outputDirectory=handle;savedDirectoryHandle=true;}
-        updateFolderStatus();
-      }catch{updateFolderStatus();}
-    };
-    $('chooseFolder').addEventListener('click',chooseOutputDirectory);
-    $('saveWorkbook').addEventListener('click',async()=>{
-      const person=data.people.find(p=>p.id===$('exportPerson').value);
-      if(!person){toast('Hãy chọn người để lưu file.');return;}
-      const entries=data.entries.filter(e=>e.personId===person.id).sort((a,b)=>a.date.localeCompare(b.date));
-      const debts=data.debts.filter(d=>d.personId===person.id).sort((a,b)=>a.date.localeCompare(b.date));
-      if(!entries.length && !debts.length){toast('Người này chưa có sản lượng hoặc khoản nợ để lưu.');return;}
-      if(!outputDirectory){outputDirectory=await chooseOutputDirectory();if(!outputDirectory)return;}
+    const shiftIsoDate=(iso,days)=>{const d=new Date(`${iso}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+    const weeklyStatus=message=>{$('weeklyExportStatus').textContent=message;};
+    const saveWeeklyWorkbooks=async({firstRun=false}={})=>{
+      if(!outputDirectory||weeklyExportRunning)return;
+      weeklyExportRunning=true;
       try{
         let permission=await outputDirectory.queryPermission({mode:'readwrite'});
         if(permission!=='granted')permission=await outputDirectory.requestPermission({mode:'readwrite'});
-        if(permission!=='granted'){toast('Chưa được cấp quyền ghi vào thư mục Luong.');return;}
-        const dates=[...entries.map(e=>e.date),...debts.map(d=>d.date)].sort();
-        const filename=`Luong_${person.name.replace(/[^\p{L}\p{N}_-]+/gu,'_')}.xlsx`;
-        const file=await outputDirectory.getFileHandle(filename,{create:true});
-        const writable=await file.createWritable();
-        await writable.write(xlsxFor(person,entries,debts,dates[0],dates.at(-1)));
-        await writable.close();
-        toast(`Đã lưu/cập nhật ${filename} trong thư mục Luong.`);
+        if(permission!=='granted'){weeklyStatus('Chưa có quyền ghi vào thư mục. Bấm “Chọn thư mục Luong” để cấp lại quyền.');return;}
+        const today=localDate(), lastSaved=localStorage.getItem(WEEKLY_EXPORT_KEY);
+        const from=lastSaved?shiftIsoDate(lastSaved,1):shiftIsoDate(today,-6), to=today;
+        const paidDebtIds=new Set(data.payments.flatMap(p=>p.debtIds||[]));
+        const debtById=new Map(data.debts.filter(d=>!paidDebtIds.has(d.id)&&d.date>=from&&d.date<=to).map(d=>[d.id,d]));
+        for(const payment of data.payments){
+          if(payment.paidAt?.slice(0,10)>=from&&payment.paidAt?.slice(0,10)<=to){
+            for(const debt of payment.debtItems||[])debtById.set(debt.id,debt);
+          }
+        }
+        let written=0;
+        for(const person of data.people){
+          const entries=data.entries.filter(e=>e.personId===person.id&&e.confirmed!==false&&e.date>=from&&e.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
+          const debts=[...debtById.values()].filter(d=>d.personId===person.id);
+          if(!entries.length&&!debts.length)continue;
+          const safeName=person.name.replace(/[^\p{L}\p{N}_-]+/gu,'_');
+          const filename=`Luong_${safeName}_${from}_${to}.xlsx`;
+          const file=await outputDirectory.getFileHandle(filename,{create:true});
+          const writable=await file.createWritable();
+          await writable.write(xlsxFor(person,entries,debts,from,to));await writable.close();written++;
+        }
+        localStorage.setItem(WEEKLY_EXPORT_KEY,to);
+        weeklyStatus(`Đã lưu ${written} file Excel riêng cho từng người trong thư mục Luong · kỳ ${displayDate(from)} – ${displayDate(to)}. Lần lưu kế tiếp sau 7 ngày.`);
+        if(!firstRun)toast(`Đã tự động lưu ${written} file Excel tổng hợp lương.`);
       }catch(error){
-        toast(error?.name==='NotAllowedError'?'Chưa được cấp quyền ghi. Hãy chọn lại thư mục Luong.':'Không lưu được Excel. Hãy chọn lại thư mục Luong.');
-      }
-    });
-    $('exportXlsx').addEventListener('click',()=>{
-      const person=data.people.find(p=>p.id===$('exportPerson').value);
-      if(!person){toast('Hãy chọn người để xuất file.');return;}
-      const from=isoDate($('fromDate').value), to=isoDate($('toDate').value);
-      if(!from || !to || from>to){toast('Khoảng ngày chưa hợp lệ. Hãy nhập theo định dạng dd/mm/yyyy.');return;}
-      const entries=data.entries.filter(e=>e.personId===person.id && e.date>=from && e.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
-      const debts=data.debts.filter(d=>d.personId===person.id && d.date>=from && d.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
-      const blob=xlsxFor(person,entries,debts,from,to), url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download=`Luong_${person.name.replace(/[^\p{L}\p{N}_-]+/gu,'_')}_${from}_${to}.xlsx`;
-      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      toast(`Đã tạo Excel riêng cho ${person.name}.`);
-    });
+        weeklyStatus(error?.name==='NotAllowedError'?'Trình duyệt cần được cấp lại quyền ghi. Bấm “Chọn thư mục Luong”.':'Chưa lưu được Excel. Hãy kiểm tra thư mục Luong rồi thử chọn lại.');
+      }finally{weeklyExportRunning=false;}
+    };
+    const maybeRunWeeklyExport=async()=>{
+      if(!outputDirectory)return;
+      const lastSaved=localStorage.getItem(WEEKLY_EXPORT_KEY);
+      if(!lastSaved){await saveWeeklyWorkbooks({firstRun:true});return;}
+      const days=Math.floor((Date.parse(`${localDate()}T00:00:00`)-Date.parse(`${lastSaved}T00:00:00`))/86400000);
+      if(days>=7)await saveWeeklyWorkbooks();
+      else weeklyStatus(`Đã bật lưu tự động vào thư mục Luong. Lần lưu tiếp theo sau ${7-days} ngày.`);
+    };
+    const chooseLuongFolder=async()=>{
+      if(!('showDirectoryPicker' in window)){weeklyStatus('Trình duyệt chưa hỗ trợ chọn thư mục để tự lưu Excel. Hãy mở trang bằng Chrome hoặc Edge.');return;}
+      try{
+        const handle=await window.showDirectoryPicker({id:'so-san-luong-weekly-luong',mode:'readwrite'});
+        if(handle.name.toLocaleLowerCase()!=='luong'){weeklyStatus('Hãy chọn đúng thư mục tên Luong.');return;}
+        let permission=await handle.requestPermission({mode:'readwrite'});
+        if(permission!=='granted'){weeklyStatus('Chưa được cấp quyền ghi vào thư mục Luong.');return;}
+        outputDirectory=handle;await storeLuongFolder(handle);await maybeRunWeeklyExport();
+      }catch(error){if(error?.name!=='AbortError')weeklyStatus('Không chọn được thư mục. Hãy thử lại.');}
+    };
+    const initializeWeeklyExport=async()=>{
+      try{
+        const handle=await readLuongFolder();
+        if(handle&&handle.name.toLocaleLowerCase()==='luong'){
+          outputDirectory=handle;
+          const permission=await handle.queryPermission({mode:'readwrite'});
+          if(permission==='granted')await maybeRunWeeklyExport();
+          else weeklyStatus('Đã nhớ thư mục Luong. Bấm nút để cấp quyền ghi và bật lưu tự động.');
+        }
+      }catch{weeklyStatus('Chọn thư mục Luong để bật lưu Excel tự động theo tuần.');}
+    };
+    $('chooseLuongFolder').addEventListener('click',chooseLuongFolder);
+    setInterval(()=>{if(!document.hidden)maybeRunWeeklyExport();},60000);
+
     $('backupData').addEventListener('click',()=>{
       const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),...data},null,2)],{type:'application/json'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`sao_luu_so_san_luong_${localDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -700,7 +786,7 @@
       }catch{toast('File sao lưu không hợp lệ.');}
       finally{event.target.value='';}
     });
-    render(); initializeOutputDirectory();
+    render(); initializeWeeklyExport();
   })();
   </script>
 </body>
