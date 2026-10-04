@@ -118,6 +118,13 @@
     .daily-breakdown th { background: #f0f3f5; }
     .person-detail { margin-top: 15px; overflow: hidden; }
     .person-detail[hidden] { display: none; }
+    .tab-nav { display: flex; gap: 8px; margin: 0 0 18px; border-bottom: 1px solid var(--line); }
+    .tab-button { margin-bottom: -1px; padding: 11px 15px; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 5px 5px 0 0; background: transparent; color: var(--ink-soft); font-weight: 680; }
+    .tab-button[aria-selected="true"] { border-color: var(--line) var(--line) var(--surface); border-bottom-color: var(--amber); background: var(--surface); color: var(--ink); }
+    .production-view[hidden] { display: none; }
+    .production-filters { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 17px; }
+    .production-filters .control { width: 210px; }
+    .date-group td { background: #f4f6f7; font-weight: 700; }
     .backup-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 2px; }
     .footnote { margin-top: 13px; color: var(--ink-soft); font-size: 12px; }
     .toast { position: fixed; right: 20px; bottom: 20px; z-index: 5; max-width: min(420px, calc(100vw - 40px)); padding: 12px 15px; border-radius: 7px; color: white; background: var(--green); box-shadow: 0 8px 25px #1f344733; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
@@ -163,6 +170,12 @@
       <div class="privacy">Dữ liệu được lưu trong trình duyệt trên máy này. Hãy tải bản sao lưu định kỳ.</div>
     </header>
 
+    <nav class="tab-nav" aria-label="Các mục chính">
+      <button id="dashboardTab" class="tab-button" type="button" aria-selected="true">Tổng quan</button>
+      <button id="productionTab" class="tab-button" type="button" aria-selected="false">Sản lượng theo tháng</button>
+    </nav>
+    <div id="dashboardView">
+
     <div class="setup-grid">
       <section class="section panel template-panel" aria-labelledby="templatesTitle">
         <div class="panel-head">
@@ -190,10 +203,6 @@
             <button class="secondary" type="submit">Thêm người</button>
           </form>
           <ul id="peopleList" class="item-list"></ul>
-          <section id="personDetail" class="panel person-detail" hidden aria-live="polite">
-            <div class="panel-head"><h2 id="personDetailTitle">Sản lượng theo ngày</h2><p>Mỗi ô là tổng số lượng của món đó trong ngày.</p></div>
-            <div class="table-wrap"><table id="personDetailTable"></table><div id="emptyPersonDetail" class="empty" hidden>Người này chưa có dòng sản lượng.</div></div>
-          </section>
         </div>
       </section>
     </div>
@@ -317,6 +326,18 @@
       </div>
       <p class="footnote">Mỗi khoản nợ được trừ một lần khi ngày ghi nằm trong kỳ đã chọn. Mỗi dòng sản lượng giữ đơn giá tại thời điểm nhập. Dữ liệu được lưu riêng theo từng người trên trình duyệt này.</p>
     </details>
+    </div>
+    <section id="productionView" class="section panel production-view" hidden aria-labelledby="productionViewTitle">
+      <div class="panel-head"><h2 id="productionViewTitle">Sản lượng theo tháng</h2><p>Sản lượng đã xác nhận được sắp theo ngày thành từng hàng. Chọn tháng và người để lọc.</p></div>
+      <div class="production-filters">
+        <div class="control"><label for="productionMonth">Tháng</label><input id="productionMonth" type="month"></div>
+        <div class="control"><label for="productionPerson">Người làm</label><select id="productionPerson"></select></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Ngày</th><th>Người làm</th><th>Món</th><th class="numeric">Số lượng</th><th class="numeric">Tiền công</th></tr></thead><tbody id="productionRows"></tbody></table>
+        <div id="emptyProduction" class="empty" hidden>Chưa có sản lượng đã xác nhận trong tháng này.</div>
+      </div>
+    </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -361,7 +382,6 @@
     };
     let data = load();
     let showEveryEntry = false;
-    let selectedProfileId = '';
     let expandedPayrollPersonId = '';
     let toastTimer;
     const persist = () => localStorage.setItem(KEY, JSON.stringify(data));
@@ -390,7 +410,8 @@
       statsPerson.replaceChildren(option('',data.people.length?'Tất cả người':'Thêm người trước'));
       data.people.forEach(person=>statsPerson.append(option(person.id,person.name)));
       if(data.people.some(person=>person.id===previousPerson))statsPerson.value=previousPerson;
-      renderRate(); renderLedger(); renderDebts(); renderSummary(); renderPayments(); renderLists(); renderPersonDetail();
+      setOptions($('productionPerson'),data.people,'Tất cả người');
+      renderRate(); renderLedger(); renderDebts(); renderSummary(); renderPayments(); renderLists(); renderProduction();
     };
     const renderRate = () => {
       const p=data.products.find(x=>x.id===$('productSelect').value);
@@ -526,7 +547,7 @@
     };
     const renderLists = () => {
       const people=$('peopleList'); people.replaceChildren();
-      data.people.forEach(p=>{const li=document.createElement('li'); const open=document.createElement('button'); open.type='button'; open.className='person-open'; open.textContent=p.name; open.addEventListener('click',()=>{selectedProfileId=p.id;renderPersonDetail();}); const small=document.createElement('small'); small.textContent=data.entries.some(e=>e.personId===p.id)?'Xem sản lượng':''; li.append(open,small); people.append(li);});
+      data.people.forEach(p=>{const li=document.createElement('li'); const name=document.createElement('span');name.textContent=p.name;const small=document.createElement('small'); small.textContent=data.entries.some(e=>e.personId===p.id)?'Có sản lượng':''; li.append(name,small); people.append(li);});
       const products=$('productsList'); products.replaceChildren();
       data.products.forEach(p=>{
         const li=document.createElement('li');
@@ -544,28 +565,19 @@
         actions.append(small,edit); li.append(name,actions); products.append(li);
       });
     };
-    const renderPersonDetail = () => {
-      const panel=$('personDetail'), person=data.people.find(p=>p.id===selectedProfileId);
-      panel.hidden=!person;
-      if(!person)return;
-      $('personDetailTitle').textContent=`Sản lượng của ${person.name}`;
-      const table=$('personDetailTable'); table.replaceChildren();
-      const entries=data.entries.filter(e=>e.personId===person.id&&e.confirmed!==false);
-      const dates=[...new Set(entries.map(e=>e.date))].sort();
-      $('emptyPersonDetail').hidden=entries.length>0;
-      if(!entries.length)return;
-      const products=[...new Set(entries.map(e=>e.productName))].sort((a,b)=>a.localeCompare(b,'vi'));
-      const head=document.createElement('thead'), header=document.createElement('tr');
-      for(const label of ['Món đồ',...dates.map(displayDate),'Tổng']){const th=document.createElement('th');th.textContent=label;header.append(th);}
-      head.append(header);table.append(head);
-      const body=document.createElement('tbody');
-      for(const product of products){
-        const tr=document.createElement('tr');let total=0;
-        const name=document.createElement('td');name.textContent=product;tr.append(name);
-        for(const date of dates){const qty=entries.filter(e=>e.productName===product&&e.date===date).reduce((sum,e)=>sum+Number(e.quantity),0);total+=qty;const td=document.createElement('td');td.className='numeric';td.textContent=qty?number(qty):'—';tr.append(td);}
-        const sum=document.createElement('td');sum.className='numeric';sum.textContent=number(total);tr.append(sum);body.append(tr);
+    const renderProduction = () => {
+      const tbody=$('productionRows');tbody.replaceChildren();
+      const month=$('productionMonth').value, personId=$('productionPerson').value;
+      const entries=data.entries.filter(e=>e.confirmed!==false&&e.date.startsWith(month)&&(!personId||e.personId===personId)).sort((a,b)=>a.date.localeCompare(b.date)||a.personName.localeCompare(b.personName,'vi')||a.productName.localeCompare(b.productName,'vi'));
+      $('emptyProduction').hidden=entries.length>0;
+      const byDate=new Map();for(const entry of entries){if(!byDate.has(entry.date))byDate.set(entry.date,[]);byDate.get(entry.date).push(entry);}
+      for(const [date,dayEntries] of byDate){
+        const groups=new Map();let dayQty=0,dayPay=0;
+        for(const entry of dayEntries){const key=`${entry.personId}\u0000${entry.productId}`;const grouped=groups.get(key)||{personName:entry.personName,productName:entry.productName,quantity:0,amount:0};grouped.quantity+=Number(entry.quantity);grouped.amount+=Number(entry.amount);groups.set(key,grouped);dayQty+=Number(entry.quantity);dayPay+=Number(entry.amount);}
+        const dayRow=document.createElement('tr');dayRow.className='date-group';
+        for(const [value,cls] of [[displayDate(date),''],['Tổng trong ngày',''],['',''],[number(dayQty),'numeric'],[money(dayPay),'numeric']]){const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;dayRow.append(td);}tbody.append(dayRow);
+        for(const item of groups.values()){const tr=document.createElement('tr');for(const [value,cls] of [['', ''],[item.personName,''],[item.productName,''],[number(item.quantity),'numeric'],[money(item.amount),'numeric']]){const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.append(td);}tbody.append(tr);}
       }
-      table.append(body);
     };
 
     for(const id of ['fromDate','toDate','entryDate','ledgerDate','debtDate'])$(id).addEventListener('input',event=>formatDateInput(event.currentTarget));
@@ -574,6 +586,16 @@
     setDateInput('debtDate',localDate());
     $('productSelect').addEventListener('change',renderRate);
     $('statsPerson').addEventListener('change',renderSummary);
+    $('productionMonth').value=localDate().slice(0,7);
+    $('productionMonth').addEventListener('change',renderProduction);
+    $('productionPerson').addEventListener('change',renderProduction);
+    const setMainTab=showProduction=>{
+      $('dashboardView').hidden=showProduction;$('productionView').hidden=!showProduction;
+      $('dashboardTab').setAttribute('aria-selected',String(!showProduction));$('productionTab').setAttribute('aria-selected',String(showProduction));
+      if(showProduction)renderProduction();
+    };
+    $('dashboardTab').addEventListener('click',()=>setMainTab(false));
+    $('productionTab').addEventListener('click',()=>setMainTab(true));
     $('productPrice').addEventListener('input',event=>{event.currentTarget.value=event.currentTarget.value.replace(/\D/g,'');});
     $('fromDate').addEventListener('change',()=>{renderDebts();renderSummary();}); $('toDate').addEventListener('change',()=>{renderDebts();renderSummary();});
     $('ledgerDate').addEventListener('change',()=>{showEveryEntry=false;renderLedger();});
